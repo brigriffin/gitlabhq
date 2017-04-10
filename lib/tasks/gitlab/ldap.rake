@@ -49,8 +49,10 @@ namespace :gitlab do
 
     def generate_user_avatar_from_ldap
       servers = Gitlab::LDAP::Config.providers
+
       servers.each do |server|
         puts "Currently querying LDAP server: #{server}"
+
         begin
           Gitlab::LDAP::Adapter.open(server) do |adapter|
             puts "Iterating over your LDAP users who have access to your GitLab server"
@@ -64,16 +66,22 @@ namespace :gitlab do
                   FileUtils.mkdir_p avatar_path
                 end
                 if user.photo[0]
-                  puts "\tFound photo in LDAP, saving it under ldap_avatar.jpg"
-                  fb = File.open('/tmp/ldap_avatar.jpg', 'wb')
-                  fb.write user.photo[0]
-                  fb.close
-                  if gl_user.avatar.model.avatar.to_s.empty?
-                    puts "\tNo personal avatar found, using LDAP photo as avatar"
-                    gl_user.avatar = File.open('/tmp/ldap_avatar.jpg')
-                    gl_user.save!
+                  puts "\tFound photo in LDAP"
+                  if File.basename(gl_user.avatar.to_s) == 'ldap_avatar.jpg' || gl_user.avatar.to_s.empty?
+                    puts "\tUploading/updating LDAP photo as avatar in Gitlab"
+                    fb = File.open('/tmp/ldap_avatar.jpg', 'wb')
+                    fb.write user.photo[0]
+                    if fb.size < 204800
+                      gl_user.avatar = fb
+                      unless gl_user.save
+                        puts "\tWarning: failed to update user avatar in Gitlab"
+                      end
+                    else
+                      puts "\tLDAP photo is bigger than the limit of 200 kilobytes, skipping"
+                    end
+                    fb.close
+                    File.unlink(fb)
                   end
-                  File.unlink('/tmp/ldap_avatar.jpg')
                 else
                   puts "\tNo photo found in LDAP"
                 end
@@ -88,5 +96,6 @@ namespace :gitlab do
         end
       end
     end
+
   end
 end
