@@ -58,8 +58,8 @@ namespace :gitlab do
             puts "Iterating over your LDAP users who have access to your GitLab server"
             users = adapter.users(adapter.config.uid, '*')
             users.each do |user|
-              puts "Processing user with #{adapter.config.uid} #{user.uid} (DN: #{user.dn})..."
-              if gl_user = User.find_by_email(user.email)
+              puts "Processing user with #{adapter.config.uid} " + user.send(adapter.config.uid) + " (DN: #{user.dn})..."
+              if gl_user = User.find_by(username: user.send(adapter.config.uid))
                 avatar_path = "#{Rails.root}/public/uploads/user/avatar/#{gl_user.id}"
                 unless Dir.exist?(avatar_path)
                   puts "\tAvatar directory #{avatar_path} does not exist, creating it"
